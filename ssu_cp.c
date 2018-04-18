@@ -303,8 +303,9 @@ void processcp(char *src, char *target){
 	struct dirent *dentry;
 	char srcbuf[PATH_MAX];
 	char tarbuf[PATH_MAX];
+	int process;
 	DIR *dirp;
-
+	pid_t pid;
 
 	if(fileformat(src) != 1){
 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
@@ -325,6 +326,14 @@ void processcp(char *src, char *target){
 
 	printf("src : %s\n",src);
 
+	for(i = 0; i < processcount; i++){
+		pid = fork();
+		if(pid < 0){
+			fprintf(stderr, "ssu_cp:pid[%s]: process fork error\n",i);
+			exit(1);
+		}
+	}
+
 	while((dentry = readdir(dirp)) != NULL){
 		printf("file : %s\n",dentry->d_name);
 
@@ -334,8 +343,10 @@ void processcp(char *src, char *target){
 		sprintf(srcbuf, "%s/%s",src, dentry->d_name);
 		sprintf(tarbuf, "%s/%s",target, dentry->d_name);
 		if(fileformat(srcbuf) == 1){
-			fork();
-			directorycp(srcbuf,tarbuf);
+			if(pid == 0){
+				directorycp(srcbuf,tarbuf);
+				exit(0);
+			}
 		}
 		else
 			cp(srcbuf, tarbuf);
