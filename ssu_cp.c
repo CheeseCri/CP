@@ -25,6 +25,8 @@ int main(int argc, char *argv[])
 	int i;
 	int srcformat;//save file's format : reg = 0, dir = 1
 	char answer;//for -i option
+	char buf[PATH_MAX];
+	char buf2[PATH_MAX];
 	char src[PATH_MAX];
 	char target[PATH_MAX];
 
@@ -61,17 +63,17 @@ int main(int argc, char *argv[])
 				opt_d++;
 				if((processcount = atoi(optarg)) == 0){
 					printf("ssu_cp: -d option error, must have [N]\n");
-					errorcheck = 1;
+					errorexit();
 				}
 				if(processcount < 1 || processcount > 9){
 					printf("ssu_cp: -d option error, [N] must 1 ~ 9\n");
-					errorcheck = 1;
+					errorexit();
 				}
 				break;
 		}
 	}
 
-	#ifdef DEBUG
+	#ifdef DEBUG //for DEBUG
 	printf("----Argv List----\n");
 	for(i = 0; i < argc; i++){
 		printf("argv[%d] : %s\n",i, argv[i]);
@@ -83,43 +85,47 @@ int main(int argc, char *argv[])
 	#endif
 
 	if(opt_s > 1 || opt_i > 1 || opt_l > 1 || opt_p > 1 || opt_r > 1 || opt_d > 1){//option double time error
-		printf("ssu_cp: cannot use same option two times\n");
-		errorcheck = 1;
+		printf("ssu_cp: cannot use same option double times\n");
+		errorexit();
 	}
-	if(opt_r > 0 && opt_d > 0){// when
+	if(opt_r > 0 && opt_d > 0){// when r option and d option are used in same time
 		printf("ssu_cp: -r and -d cannot use together\n");
-		errorcheck = 1;
+		errorexit();
 	}
 
-	if(argc - optind != 2){
+	if(argc - optind != 2){//argument error print
 		printf("ssu_cp: command error\n");
-		errorcheck = 1;
-		exit(1);
+		errorexit();
 	}
 
 
-	strcpy(src,argv[optind]);//save src
-	strcpy(target,argv[optind+1]);//save target
-	printf("target : %s\n",target);
-	printf("src : %s\n", src);
-	srcformat = fileformat(src);
+	strcpy(buf,argv[optind]);//save src
+	strcpy(buf2,argv[optind+1]);//save target
+	printf("target : %s\n",buf2);
+	printf("src : %s\n", buf);
+	
+
+	// if(realpath(src,src) == NULL){
+	// 	printf("ssu_cp: source path error");
+	// 	errorcheck = 1;
+	// }
+	// if(realpath(target,target) == NULL){
+	// 	printf("ssu_cp: target path error");
+	// 	errorcheck = 1;
+	// }
 
 
 	if(errorcheck == 1){//if error exist, show guide message and exit
-		printf("ssu_cp error\n"
-			"usage in case of file\n"
-			"cp [i/n] [-l][-p]\n"
-			"or cp [-s][source][target]\n"
-			"in case of directory cp [-i/n][-l][-p][-r][-d][N]\n");
+		errorexit();
 	}
 
 	if(opt_p == 1){// -p option
-		printoptp(src);
+		printoptp(buf);
 	}
 
 	if(opt_i == 1){// -i option
-		if(access(target, F_OK) == 0){
-			printf("overwrite %s (y/n)?",target);
+		if(access(buf2, F_OK) == 0){
+			printf("overwrite %s (y/n)?",buf2);
 			scanf("%s",&answer);
 			if(answer == 'y')
 				overwritecheck = 1;
@@ -128,36 +134,50 @@ int main(int argc, char *argv[])
 		}
 	}
 
+	if(opt_n == 1){
+		overwritecheck = 0;
+	}
+
 	if(opt_s == 1){//-s option
 		if(opt_i != 0 || opt_l != 0 || opt_p != 0 || opt_n != 0 || opt_r != 0 || opt_d != 0){
 			printf("ssu_cp:-s option cannot be used with other option\n");
-			exit(1);
+			errorexit();
 		}
 		if(srcformat == 1){
-			printf("ssu_cp:%s: cannot do symbolic copy to directory\n",target);
-			exit(0);
+			printf("ssu_cp:%s: cannot do symbolic copy to directory\n",buf);
+			errorexit();
 		}
 		else{
-			if(symlink(src, target) < 0){
-				fprintf(stderr, "ssu_cp:%s->%s: symlink error\n",target,src);
-				exit(1);
+			if(symlink(buf, buf2) < 0){
+				fprintf(stderr, "ssu_cp:%s->%s: symlink error\n",buf2,buf);
+				errorexit();
 			}
 			else{
-				printf("ssu_cp:symlink: %s -> %s\n", target, src);
+				printf("ssu_cp:symlink: %s -> %s\n", buf2, buf);
 				exit(0);
 			}
 		}	
 	}
 
+	realpath(buf,src);
+	realpath(buf2,target);
+	if(!strcmp(src,target)){
+		printf("ssu_cp: input error, source and target are same\n");
+		errorexit();
+	}
+	srcformat = fileformat(src);
+
 	if(opt_r == 1){
 		if(srcformat != 1){
 			printf("ssu_cp:%s: this is not directory file\n",src);
+			errorexit();
 		}
 		directorycp(src,target);
 	}
 	else if(opt_d == 1){
 		if(srcformat != 1){
 			printf("ssu_cp:%s: this is not directory file\n",src);
+			errorexit();
 		}
 		processcp(src, target);
 	}
@@ -176,7 +196,7 @@ int fileformat(char *fname){
 	struct stat file_info;
 	if(lstat(fname, &file_info) < 0) {//not original file, get link file's information
 		fprintf(stderr, "ssu_cp:%s: No such file or directory\n",fname);
-		errorcheck = 1;
+		errorexit();
 	}
 
 	if(S_ISREG(file_info.st_mode))
@@ -188,7 +208,7 @@ int fileformat(char *fname){
 	}
 	else{
 		printf("ssu_cp:%s: unknown file format\n",fname);
-		errorcheck = 1;
+		errorexit();
 	}
 }
 //print -p option's requirements.
@@ -199,7 +219,7 @@ void printoptp(char * src){
 	struct group *gw;
 	if(lstat(src, &srcstat) < 0) {
 		fprintf(stderr, "ssu_cp:%s: No such file or directory\n",src);
-		errorcheck = 1;
+		errorexit();
 	}
 	pw = getpwuid(srcstat.st_uid);
 	gw = getgrgid(srcstat.st_gid);
@@ -231,11 +251,13 @@ void cp(char * src, char * target){
 
 	if((fd = open(src, O_RDONLY)) < 0){
 		fprintf(stderr, "ssu_cp:%s: open error\n",src);
+		errorexit();
 		exit(1);
 	}
 	
 	if((fd2 = open(target, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0){
 		fprintf(stderr, "ssu_cp:%s: open erron\n",target);
+		errorexit();
 		exit(1);
 	}
 
@@ -273,18 +295,25 @@ void directorycp(char *src, char *target){
 
 	if(fileformat(src) != 1){
 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
+		errorexit();
 		exit(1);
 	}
 
 	if(access(target,F_OK) < 0){
 		if(mkdir(target,0777) < 0){
 			fprintf(stderr, "ssu_cp:%s: failed to mkdir",target);
+			errorexit();
 			exit(1);
 		}
+	}
+	else if(access(target,F_OK) == 0){
+		if(overwritecheck == 0)
+			return;
 	}
 
 	if((dirp = opendir(src)) == NULL){
 		fprintf(stderr, "ssu_cp:%s: opendir error\n",src);
+		errorexit();
 		exit(1);
 	}
 
@@ -314,18 +343,21 @@ void processcp(char *src, char *target){
 
 	if(fileformat(src) != 1){
 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
+		errorexit();
 		exit(1);
 	}
 
 	if(access(target,F_OK) < 0){
 		if(mkdir(target,0777) < 0){
 			fprintf(stderr, "ssu_cp:%s: failed to mkdir",target);
+			errorexit();
 			exit(1);
 		}
 	}
 
 	if((dirp = opendir(src)) == NULL){
 		fprintf(stderr, "ssu_cp:%s: opendir error\n",src);
+		errorexit();
 		exit(1);
 	}
 
@@ -359,58 +391,11 @@ void processcp(char *src, char *target){
 
 }
 
-
-// void scancp(char * src, char * target){
-// 	pid_t pids[10], pid;
-// 	int processnum = 0;
-// 	int count;
-// 	int i;
-
-// 	struct dirent *dentry;
-// 	struct dirent **namelist;
-// 	char srcbuf[PATH_MAX];
-// 	char tarbuf[PATH_MAX];
-// 	DIR *dirp;
-
-
-// 	if(fileformat(src) != 1){
-// 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
-// 		exit(1);
-// 	}
-
-// 	if(access(target,F_OK) < 0){
-// 		if(mkdir(target,0777) < 0){
-// 			fprintf(stderr, "ssu_cp:%s: failed to mkdir",target);
-// 			exit(1);
-// 		}
-// 	}
-
-// 	if((dirp = opendir(src)) == NULL){
-// 		fprintf(stderr, "ssu_cp:%s: opendir error\n",src);
-// 		exit(1);
-// 	}
-
-// 	if((count = scandir(src, &namelist, NULL, NULL)) = -1){
-// 		fprintf(stderr, "ssu_cp: Directory scan error for <%s>\n",src);
-// 		exit(1);
-// 	}
-
-
-// 	while(processnum < processcount){
-
-// 		pids[processnum] = fork();
-
-// 		if(pids[processnum] < 0){
-// 			printf("ssu_cp: process fork error\n");
-// 			exit(1);
-// 		}
-
-// 		if(pids[processnum] == 0){
-// 			printf("child");
-// 			exit(1);
-// 		}
-// 		else{
-// 			printf("parent!, pid : %d", getpid());
-// 		}
-// 	}
-// }
+void errorexit(){
+	printf("ssu_cp error\n"
+			"usage in case of file\n"
+			"cp [i/n] [-l][-p]\n"
+			"or cp [-s][source][target]\n"
+			"in case of directory cp [-i/n][-l][-p][-r][-d][N]\n");
+	exit(1);
+}
