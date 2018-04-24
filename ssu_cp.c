@@ -14,7 +14,7 @@
 #include "ssu_cp.h"
 
 int overwritecheck = 1;//for overwrite. 1 : do overwrite, 0 : do not overwrite
-int opt_s = 0, opt_i = 0, opt_l = 0, opt_p = 0,opt_n = 0, opt_r = 0, opt_d = 0;
+int opt_s = 0, opt_i = 0, opt_l = 0, opt_p = 0,opt_n = 0, opt_r = 0, opt_d = 0;//option's value
 int processcount = 0;//for option -d
 
 
@@ -24,13 +24,13 @@ int main(int argc, char *argv[])
 	int i;
 	int srcformat;//save file's format : reg = 0, dir = 1
 	char answer;//for -i option
-	char buf[PATH_MAX];
-	char buf2[PATH_MAX];
-	char src[PATH_MAX];
-	char target[PATH_MAX];
+	char buf[PATH_MAX];//get src
+	char buf2[PATH_MAX];//get target
+	char src[PATH_MAX];//get src's realpath
+	char target[PATH_MAX];//get target's realpath
 
 	while((c = getopt(argc, argv,"silpnrd:SILPNRD:")) != -1){//option count
-		if(c<97)
+		if(c<97)//if option is uppercase, change it to lowercase
 			c = c+32;
 		switch (c){
 			case 's':
@@ -119,57 +119,55 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(opt_n == 1){
+	if(opt_n == 1){//-n option
 		overwritecheck = 0;
 	}
 
 	if(opt_s == 1){//-s option
-		if(opt_i != 0 || opt_l != 0 || opt_p != 0 || opt_n != 0 || opt_r != 0 || opt_d != 0){
+		if(opt_i != 0 || opt_l != 0 || opt_p != 0 || opt_n != 0 || opt_r != 0 || opt_d != 0){//-s cannot be used with other option
 			printf("ssu_cp:-s option cannot be used with other option\n");
 			errorexit();
 		}
-		if(srcformat == 1){
+		if(srcformat == 1){//if source is directory, error
 			printf("ssu_cp:%s: cannot do symbolic copy to directory\n",buf);
 			errorexit();
 		}
 		else{
-			if(symlink(buf, buf2) < 0){
+			if(symlink(buf, buf2) < 0){//if symlink task error occured, print error
 				fprintf(stderr, "ssu_cp:%s->%s: symlink error\n",buf2,buf);
 				errorexit();
 			}
 			else{
-				printf("ssu_cp:symlink: %s -> %s\n", buf2, buf);
 				exit(0);
 			}
 		}	
 	}
 
-	realpath(buf,src);
-	realpath(buf2,target);
-	if(!strcmp(src,target)){
+	realpath(buf,src);//change source path to real path
+	realpath(buf2,target);//change target path to real path
+	if(!strcmp(src,target)){//if source and target are same, print error
 		printf("ssu_cp: input error, source and target are same\n");
 		errorexit();
 	}
-	srcformat = fileformat(src);
+	srcformat = fileformat(src);//get source file's format
 
 	if(opt_r == 1){
-		if(srcformat != 1){
+		if(srcformat != 1){//for -r option, if source is not directory, error
 			printf("ssu_cp:%s: this is not directory file\n",src);
 			errorexit();
 		}
-		directorycp(src,target);
+		directorycp(src,target);//Directory copy function.
 	}
 	else if(opt_d == 1){
-		if(srcformat != 1){
+		if(srcformat != 1){//for -d option, if source is not directory, error
 			printf("ssu_cp:%s: this is not directory file\n",src);
 			errorexit();
 		}
-		processcp(src, target);
+		processcp(src, target);//Directory copy function by using fork()
 	}
 	else{
-		cp(src,target);
+		cp(src,target);//Copy file
 	}
-	//cp command START
 	exit(0);
 }
 
@@ -177,6 +175,7 @@ int main(int argc, char *argv[])
 //if file is regular, return 0
 //if file is directory, return 1
 //if file is symbolic, return 2
+//else return 3
 int fileformat(char *fname){
 	struct stat file_info;
 	if(lstat(fname, &file_info) < 0) {//not original file, get link file's information
@@ -220,7 +219,7 @@ void printoptp(char * src){
 	printf("GROUP : %s\n", gw->gr_name);
 	printf("file size : %ld\n", srcstat.st_size);
 }
-
+//file copy function
 void cp(char * src, char * target){
 	int fd;
 	int fd2;
@@ -229,7 +228,7 @@ void cp(char * src, char * target){
 	struct stat srcstat;
 	struct utimbuf time_buf;
 
-	if(overwritecheck == 0){
+	if(overwritecheck == 0){//overwrite check
 		if(access(target,F_OK) == 0)
 			return;
 	}
@@ -246,7 +245,7 @@ void cp(char * src, char * target){
 		exit(1);
 	}
 
-	while((length = read(fd, buf, BUFSIZ)) > 0)//cp 
+	while((length = read(fd, buf, BUFSIZ)) > 0)//wrtie source's content to target
 		write(fd2, buf, length);
 
 
@@ -271,53 +270,51 @@ void cp(char * src, char * target){
 
 	}
 }
-
+//Directory copy function
 void directorycp(char *src, char *target){
 	struct dirent *dentry;
 	char srcbuf[PATH_MAX];
 	char tarbuf[PATH_MAX];
 	DIR *dirp;
 
-	if(fileformat(src) != 1){
+	if(fileformat(src) != 1){//if file's format is not directory
 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
 		errorexit();
-		exit(1);
 	}
 
-	if(access(target,F_OK) < 0){
+	if(access(target,F_OK) < 0){//if target directory does not exist
 		if(mkdir(target,0777) < 0){
 			fprintf(stderr, "ssu_cp:%s: failed to mkdir",target);
 			errorexit();
-			exit(1);
 		}
 	}
-	else if(access(target,F_OK) == 0){
+	else if(access(target,F_OK) == 0){//overwrite check
 		if(overwritecheck == 0)
 			return;
 	}
 
-	if((dirp = opendir(src)) == NULL){
+	if((dirp = opendir(src)) == NULL){//open source directory
 		fprintf(stderr, "ssu_cp:%s: opendir error\n",src);
 		errorexit();
 		exit(1);
 	}
 
-	while((dentry = readdir(dirp)) != NULL){
-		if(strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name,"..") == 0)
+	while((dentry = readdir(dirp)) != NULL){//read files in source directory
+		if(strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name,"..") == 0)//skip current and parent's directory
 			continue;
 
 		sprintf(srcbuf, "%s/%s",src, dentry->d_name);
 		sprintf(tarbuf, "%s/%s",target, dentry->d_name);
-		if(fileformat(srcbuf) == 1){
+		if(fileformat(srcbuf) == 1){//if file is directory, call directory copy function again
 			directorycp(srcbuf,tarbuf);
 		}
 		else
-			cp(srcbuf, tarbuf);
+			cp(srcbuf, tarbuf);//if file is regular file, call file copy function
 	}
 
 }
 
-
+//Directory copy by using fork()
 void processcp(char *src, char *target){
 	struct dirent *dentry;
 	char srcbuf[PATH_MAX];
@@ -346,17 +343,13 @@ void processcp(char *src, char *target){
 		exit(1);
 	}
 
-	printf("src : %s\n",src);
-
 	while((dentry = readdir(dirp)) != NULL){
-		printf("file : %s\n",dentry->d_name);
-
-		if(strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name,"..") == 0)
+		if(strcmp(dentry->d_name, ".") == 0 || strcmp(dentry->d_name,"..") == 0)//skip current and parent's directory.
 			continue;
 
 		sprintf(srcbuf, "%s/%s",src, dentry->d_name);
 		sprintf(tarbuf, "%s/%s",target, dentry->d_name);
-		if(fileformat(srcbuf) == 1){
+		if(fileformat(srcbuf) == 1){//if file is directory, and processcount is bigger than 0
 			if(processcount > 0){
 				processcount--;
 				pid = fork();
@@ -375,7 +368,7 @@ void processcp(char *src, char *target){
 	}
 
 }
-
+//if there is error, call this funtion to show manual
 void errorexit(){
 	printf("ssu_cp error\n"
 			"usage in case of file\n"
