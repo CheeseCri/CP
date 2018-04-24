@@ -128,7 +128,11 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if(opt_s == 1){
+	if(opt_s == 1){//-s option
+		if(opt_i != 0 || opt_l != 0 || opt_p != 0 || opt_n != 0 || opt_r != 0 || opt_d != 0){
+			printf("ssu_cp:-s option cannot be used with other option\n");
+			exit(1);
+		}
 		if(srcformat == 1){
 			printf("ssu_cp:%s: cannot do symbolic copy to directory\n",target);
 			exit(0);
@@ -153,8 +157,9 @@ int main(int argc, char *argv[])
 	}
 	else if(opt_d == 1){
 		if(srcformat != 1){
-			printf("ssu_cp:%s: this is not directory file\n"src);
+			printf("ssu_cp:%s: this is not directory file\n",src);
 		}
+		processcp(src, target);
 	}
 	else{
 		cp(src,target);
@@ -304,6 +309,7 @@ void processcp(char *src, char *target){
 	char srcbuf[PATH_MAX];
 	char tarbuf[PATH_MAX];
 	DIR *dirp;
+	pid_t pid;
 
 
 	if(fileformat(src) != 1){
@@ -334,11 +340,77 @@ void processcp(char *src, char *target){
 		sprintf(srcbuf, "%s/%s",src, dentry->d_name);
 		sprintf(tarbuf, "%s/%s",target, dentry->d_name);
 		if(fileformat(srcbuf) == 1){
-			fork();
-			directorycp(srcbuf,tarbuf);
+			if(processcount > 0){
+				processcount--;
+				pid = fork();
+				if(pid == 0){
+					directorycp(srcbuf,tarbuf);
+					printf("ssu_cp:pid=%d: %s->%s copy done\n",getpid(),srcbuf,tarbuf);
+					exit(0);
+				}
+			}
+			else{
+				directorycp(srcbuf, tarbuf);
+			}
 		}
 		else
 			cp(srcbuf, tarbuf);
 	}
 
 }
+
+
+// void scancp(char * src, char * target){
+// 	pid_t pids[10], pid;
+// 	int processnum = 0;
+// 	int count;
+// 	int i;
+
+// 	struct dirent *dentry;
+// 	struct dirent **namelist;
+// 	char srcbuf[PATH_MAX];
+// 	char tarbuf[PATH_MAX];
+// 	DIR *dirp;
+
+
+// 	if(fileformat(src) != 1){
+// 		printf("ssu_cp:%s: [SOURCE] is not directory\n",src);
+// 		exit(1);
+// 	}
+
+// 	if(access(target,F_OK) < 0){
+// 		if(mkdir(target,0777) < 0){
+// 			fprintf(stderr, "ssu_cp:%s: failed to mkdir",target);
+// 			exit(1);
+// 		}
+// 	}
+
+// 	if((dirp = opendir(src)) == NULL){
+// 		fprintf(stderr, "ssu_cp:%s: opendir error\n",src);
+// 		exit(1);
+// 	}
+
+// 	if((count = scandir(src, &namelist, NULL, NULL)) = -1){
+// 		fprintf(stderr, "ssu_cp: Directory scan error for <%s>\n",src);
+// 		exit(1);
+// 	}
+
+
+// 	while(processnum < processcount){
+
+// 		pids[processnum] = fork();
+
+// 		if(pids[processnum] < 0){
+// 			printf("ssu_cp: process fork error\n");
+// 			exit(1);
+// 		}
+
+// 		if(pids[processnum] == 0){
+// 			printf("child");
+// 			exit(1);
+// 		}
+// 		else{
+// 			printf("parent!, pid : %d", getpid());
+// 		}
+// 	}
+// }
