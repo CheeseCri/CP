@@ -13,7 +13,6 @@
 #include <grp.h>
 #include "ssu_cp.h"
 
-int errorcheck = 0;//for error
 int overwritecheck = 1;//for overwrite. 1 : do overwrite, 0 : do not overwrite
 int opt_s = 0, opt_i = 0, opt_l = 0, opt_p = 0,opt_n = 0, opt_r = 0, opt_d = 0;
 int processcount = 0;//for option -d
@@ -103,21 +102,7 @@ int main(int argc, char *argv[])
 	strcpy(buf2,argv[optind+1]);//save target
 	printf("target : %s\n",buf2);
 	printf("src : %s\n", buf);
-	
 
-	// if(realpath(src,src) == NULL){
-	// 	printf("ssu_cp: source path error");
-	// 	errorcheck = 1;
-	// }
-	// if(realpath(target,target) == NULL){
-	// 	printf("ssu_cp: target path error");
-	// 	errorcheck = 1;
-	// }
-
-
-	if(errorcheck == 1){//if error exist, show guide message and exit
-		errorexit();
-	}
 
 	if(opt_p == 1){// -p option
 		printoptp(buf);
