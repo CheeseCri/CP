@@ -235,13 +235,11 @@ void cp(char * src, char * target){
 	if((fd = open(src, O_RDONLY)) < 0){
 		fprintf(stderr, "ssu_cp:%s: open error\n",src);
 		errorexit();
-		exit(1);
 	}
 	
 	if((fd2 = open(target, O_WRONLY | O_CREAT | O_TRUNC, 0666)) < 0){
 		fprintf(stderr, "ssu_cp:%s: open erron\n",target);
 		errorexit();
-		exit(1);
 	}
 
 	while((length = read(fd, buf, BUFSIZ)) > 0)//wrtie source's content to target
