@@ -191,8 +191,7 @@ int fileformat(char *fname){
 		return 2;
 	}
 	else{
-		printf("ssu_cp:%s: unknown file format\n",fname);
-		errorexit();
+		return 3;
 	}
 }
 //print -p option's requirements.
